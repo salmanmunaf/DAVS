@@ -43,7 +43,6 @@ import DashManifestModel from '../../dash/models/DashManifestModel';
 import VideoModel from '../models/VideoModel';
 import DashMetrics from '../../dash/DashMetrics';
 import MetricsModel from '../models/MetricsModel';
-const fs = require('fs') 
 
 const ABANDON_LOAD = 'abandonload';
 const ALLOW_LOAD = 'allowload';
@@ -67,7 +66,6 @@ var MEM_STATE_OLD = "";
 var MEM_TS_OLD = -1.0;
 var ABR_STATE = [];
 var fps_norm = [], fps_data = [], fps_time = [];
-var window_increase = 0, window_decrease = 0;
 
 // var cpuUsage;
 // var lInd = 0;
@@ -87,8 +85,8 @@ function AbrController() {
     let context = this.context;
     let eventBus = EventBus(context).getInstance();
     let abrAlgo = -1;
-    let bitrateArray = [200,300,480,750,1200,1850,2850,4300,5300];
-    // let bitrateArray = [300,750,1200,1850,2850,4300];
+    //let bitrateArray = [200,300,480,750,1200,1850,2850,4300,5300];
+    let bitrateArray = [300,750,1200,1850,2850,4300];
     let reservoir = 5;
     let startUpPhase = true;
     let oldBLevel = 0.0;
@@ -405,90 +403,82 @@ function AbrController() {
     }
 
     function getBitrateBB(bLevel) {
-        var self = this;
-        // tmpBitrate = 0,
-        // tmpQuality = 0;
-        // if (bLevel <= reservoir) 
-        //     tmpBitrate = bitrateArray[0];
-        // // } else if (bLevel > reservoir + cushion) {
-        // //     tmpBitrate = bitrateArray[8];
-        // // } else {
-        // //     tmpBitrate = bitrateArray[0] + (bitrateArray[8] - bitrateArray[0])*(bLevel - reservoir)/cushion;
-        // // }
-        
-        // // findout matching quality level
-        // for (var i = 9; i>=0; i--) {
-        //     if (tmpBitrate >= bitrateArray[i]) {
-        //         tmpQuality = i;
-        //         break;
-        //     }
-        //     tmpQuality = i;
+        var self = this,
+        tmpBitrate = 0,
+        tmpQuality = 0;
+        if (bLevel <= reservoir) 
+            tmpBitrate = bitrateArray[0];
+        // } else if (bLevel > reservoir + cushion) {
+        //     tmpBitrate = bitrateArray[8];
+        // } else {
+        //     tmpBitrate = bitrateArray[0] + (bitrateArray[8] - bitrateArray[0])*(bLevel - reservoir)/cushion;
         // }
-        //return 9;
         
-        // return tmpQuality;
-
+        // findout matching quality level
+        for (var i = 9; i>=0; i--) {
+            if (tmpBitrate >= bitrateArray[i]) {
+                tmpQuality = i;
+                break;
+            }
+            tmpQuality = i;
+        }
+        //return 9;
+        console.log('mem_state: ' + MEM_STATE.toString());
+        console.log('abr_state: ' + ABR_STATE.toString());
+        return tmpQuality;
         // return 0;
 /////////////mem constraint///////////////////
         // var self = this;
 
         // ABR_STATE.push(MEM_STATE);
-        let data = {
-            'Mem State' : MEM_STATE,
-            'LastQuality' : lastQuality,
-            'Buffer Size' : BUFFER_SIZE
-        }
 
-        // state unchanged
-        if ( MEM_TS === MEM_TS_OLD ) {
-            return lastQuality;
-        }
-
-        // no memory info
+        // // no memory info
         // if ( MEM_STATE === "" ) {
         //     return 2;
         // }
 
-        MEM_TS_OLD = MEM_TS;
-        MEM_STATE_OLD = MEM_STATE;
+        // // state unchanged
+        // if ( MEM_TS === MEM_TS_OLD ) {
+        //     return lastQuality;
+        // }
 
-        // state changed to moderate
-        if ( MEM_STATE === "Moderate" ) {
-            return Math.max(lastQuality - 1, 0);
-        }
+        // MEM_TS_OLD = MEM_TS;
+        // MEM_STATE_OLD = MEM_STATE;
 
-        // state changed to low
-        if ( MEM_STATE === "Low" ) {
+        // // state changed to moderate
+        // if ( MEM_STATE === "Moderate" ) {
+        //     return Math.max(lastQuality - 1, 0);
+        // }
+
+        // // state changed to low
+        // if ( MEM_STATE === "Low" ) {
             
-            if (lastQuality < 3) {
-                
-                if ( lastQuality === 2 ) {
-                BUFFER_SIZE = Math.max(BUFFER_SIZE - 10, 8);
-                }
+        //     if ( lastQuality === 2 ) {
+        //         BUFFER_SIZE = Math.max(BUFFER_SIZE - 10, 8);
+        //     }
 
-                if ( lastQuality === 1 ) {
-                    BUFFER_SIZE = Math.max(BUFFER_SIZE - 30, 8);
-                }
+        //     if ( lastQuality === 1 ) {
+        //         BUFFER_SIZE = Math.max(BUFFER_SIZE - 30, 8);
+        //     }
 
-                if ( lastQuality === 0 ) {
-                    BUFFER_SIZE = 8;
-                }
+        //     if ( lastQuality === 0 ) {
+        //         BUFFER_SIZE = 8;
+        //     }
 
-                mediaPlayerModel.setBufferTimeAtTopQuality(BUFFER_SIZE);
-                mediaPlayerModel.setStableBufferTime(BUFFER_SIZE);
-                mediaPlayerModel.setBufferToKeep(BUFFER_SIZE);
-            }
+        //     mediaPlayerModel.setBufferTimeAtTopQuality(BUFFER_SIZE);
+        //     mediaPlayerModel.setStableBufferTime(BUFFER_SIZE);
+        //     mediaPlayerModel.setBufferToKeep(BUFFER_SIZE);
 
-            return Math.max(lastQuality - 1, 0);
-        }
+        //     return Math.max(lastQuality - 1, 0);
+        // }
 
-        // state changed to critical
-        if ( MEM_STATE === "Critical" ) {
-            mediaPlayerModel.setBufferTimeAtTopQuality(8);
-            mediaPlayerModel.setStableBufferTime(8);
-            mediaPlayerModel.setBufferToKeep(8);
-            return 0;
-        }
+        // // state changed to critical
+        // if ( MEM_STATE === "Critical" ) {
+        //     mediaPlayerModel.setBufferTimeAtTopQuality(8);
+        //     mediaPlayerModel.setStableBufferTime(8);
+        //     mediaPlayerModel.setBufferToKeep(8);
+        //     return 0;
+        // }
 
         // ABR_STATE.push(-1);
         // return 2;
@@ -508,75 +498,54 @@ function AbrController() {
 
         // ABR_STATE.push(-1);
         // // fetch fps data
-        if ( sessionStorage.fps && sessionStorage.time ) {
-            fps_data = sessionStorage.getItem("fps").split(',').map(Number);
-            fps_time = sessionStorage.getItem("time").split(',').map(Number);
-        }
+        // if ( sessionStorage.fps && sessionStorage.time ) {
+        //     fps_data = sessionStorage.getItem("fps").split(',').map(Number);
+        //     fps_time = sessionStorage.getItem("time").split(',').map(Number);
         // } else {
         //     return lastQuality;
         // }
-        // let data = {
-        //     'Mem State' : MEM_STATE,
-        //     'LastQuality' : lastQuality,
-        //     'Buffer Size' : BUFFER_SIZE,
-        //     'fps data' : fps_data,
-        //     'fps time' : fps_time
-        // }
-        // console.log('******DATA***********');
-        // console.log(data);
-        data['fps data'] = fps_data;
-        data['fps time'] = fps_time;
 
 
         // // CPU Bottleneck Condition
         // ABR_STATE.push(0);
-        if ( fps_data.length > WINDOW_SIZE_DECREASE ) {
+        // if ( fps_data.length > WINDOW_SIZE_DECREASE ) {
 
-            var fps_normal = normalizeFps(fps_data,fps_time).slice(0,-1);
-            ABR_STATE.push(1);
-            // threshold was reached
-            window_decrease = (fps_normal.slice(-1*WINDOW_SIZE_DECREASE).filter(function(n) { return n < CPU_THRESHOLD_DECREASE; }).length)/WINDOW_SIZE_DECREASE;
-            if ( window_decrease > CPU_FRACTION_DECREASE ) {
-                return Math.max(lastQuality - 1, 0);
-            }
-        }
+        //     var fps_normal = normalizeFps(fps_data,fps_time).slice(0,-1);
+        //     ABR_STATE.push(1);
+        //     // threshold was reached
+        //     if ( (fps_normal.slice(-1*WINDOW_SIZE_DECREASE).filter(function(n) { return n < CPU_THRESHOLD_DECREASE; }).length)/WINDOW_SIZE_DECREASE > CPU_FRACTION_DECREASE ) {
+        //         if( lastQuality>0) {
+        //     		return lastQuality-1;
+        //     	}
+        //     	else {
+        //     		return lastQuality;
+        //     	}
+                
+        //     }
+
+        // }
 
 
         // //CPU good
         // ABR_STATE.push(2);
-        if ( fps_data.length > WINDOW_SIZE_INCREASE ) {
+        // if ( fps_data.length > WINDOW_SIZE_INCREASE ) {
 
-            var fps_normal = normalizeFps(fps_data,fps_time).slice(0,-1);
-            ABR_STATE.push(3);;
-            // threshold was reached
-            window_increase = (fps_normal
-            .slice(-1*WINDOW_SIZE_INCREASE)
-            .filter(function(n) { return n < CPU_THRESHOLD_INCREASE; }).length)/WINDOW_SIZE_INCREASE;
-            if ( window_increase <= CPU_FRACTION_INCREASE ) {
-                return Math.max(lastQuality + 1, 5);
-            }
-        }
+        //     var fps_normal = normalizeFps(fps_data,fps_time).slice(0,-1);
+        //     ABR_STATE.push(3);;
+        //     // threshold was reached
+        //     if ( (fps_normal.slice(-1*WINDOW_SIZE_INCREASE).filter(function(n) { return n < CPU_THRESHOLD_INCREASE; }).length)/WINDOW_SIZE_INCREASE <= CPU_FRACTION_INCREASE ) {
+        //     	if( lastQuality<2) {
+        //     		return lastQuality+1;
+        //     	}
+        //     	else {
+        //     		return lastQuality;
+        //     	}
+                
+        //     }
+        // }
         // ABR_STATE.push(4);
-        // return lastQuality;e
-        let tmpBitrate = 0;
-        let tmpQuality = 0;
-        if (bLevel <= reservoir) {
-            tmpBitrate = bitrateArray[0];
-        } else if (bLevel > reservoir + cushion) {
-            tmpBitrate = bitrateArray[8];
-        } else {
-            tmpBitrate = bitrateArray[0] + (bitrateArray[8] - bitrateArray[0])*(bLevel - reservoir)/cushion;
-        }
-        
-        // findout matching quality level
-        for (var i = 9; i>=0; i--) {
-            if (tmpBitrate >= bitrateArray[i]) {
-                tmpQuality = i;
-                break;
-            }
-            tmpQuality = i;
-        }
-        return tmpQuality;
+        // return lastQuality;
+        return 4;
 
 
 
@@ -1026,7 +995,7 @@ function AbrController() {
                         }
                     }
                 }
-                var data = {'deviceTime': curr_time, 'videoPlayed': video_time, 'nextChunkSize': next_chunk_size(lastRequested+1), 'Type': 'BB', 'lastquality': lastQuality, 'buffer': buffer, 'bufferAdjusted': bufferLevelAdjusted, 'bandwidthEst': bandwidthEst, 'lastRequest': lastRequested, 'RebufferTime': rebuffer, 'lastChunkFinishTime': lastHTTPRequest._tfinish.getTime(), 'lastChunkStartTime': lastHTTPRequest.tresponse.getTime(), 'lastChunkSize': last_chunk_size(lastHTTPRequest), 'droppedFrames': droppedFramesNow, 'ABR_STATE': ABR_STATE, 'MEM_STATE': MEM_STATE, 'fpsNorm': fps_norm, 'BUFFER_SIZE': BUFFER_SIZE, 'WindowIncrease': window_increase, 'WindowDecrease': window_decrease};
+                var data = {'deviceTime': curr_time, 'videoPlayed': video_time, 'nextChunkSize': next_chunk_size(lastRequested+1), 'Type': 'BB', 'lastquality': lastQuality, 'buffer': buffer, 'bufferAdjusted': bufferLevelAdjusted, 'bandwidthEst': bandwidthEst, 'lastRequest': lastRequested, 'RebufferTime': rebuffer, 'lastChunkFinishTime': lastHTTPRequest._tfinish.getTime(), 'lastChunkStartTime': lastHTTPRequest.tresponse.getTime(), 'lastChunkSize': last_chunk_size(lastHTTPRequest), 'droppedFrames': droppedFramesNow, 'ABR_STATE': ABR_STATE, 'fpsNorm': fps_norm};
                 xhr.open("POST", "http://192.168.0.101:8333", true);
                 xhr.send(JSON.stringify(data));
                 return Math.min(getBitrateBB(buffer), maxBitrateAllowed);
