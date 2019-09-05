@@ -382,7 +382,7 @@ function BufferController(config) {
         const start = buffer.buffered.length ? buffer.buffered.start(0) : 0;
         const bufferToPrune = playbackController.getTime() - start - mediaPlayerModel.getBufferToKeep();
         if (bufferToPrune > 0) {
-            log('pruning buffer: ' + bufferToPrune + ' seconds.');
+            // data_pruning.push(bufferToPrune);
             isPruningInProgress = true;
             sourceBufferController.remove(buffer, 0, Math.round(start + bufferToPrune), mediaSource);
         }

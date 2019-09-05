@@ -85,7 +85,7 @@ MediaPlayer.dependencies.AbrController = function () {
 	festive: undefined,
 	// Xiaoqi_cr
 	// Xiaoqi
-
+	//
 	getBitrateBB: function (bLevel) {
 	    var self = this,
 	    tmpBitrate = 0,

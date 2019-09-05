@@ -79,6 +79,26 @@ def make_request_handler(input_dict):
                 # @Hongzi: this is just the summary of throughput/quality at the end of the load
                 # so we don't want to use this information to send back a new quality
                 print "Summary: ", post_data
+            
+            elif ( 'fpsSeries' in post_data ):
+                send_data = "REFRESH"
+                end_of_video = True
+                self.input_dict['last_total_rebuf'] = 0
+                self.input_dict['last_bit_rate'] = DEFAULT_QUALITY
+                self.input_dict['video_chunk_coount'] = 0
+                self.log_file.write('\n')  # so that in the log we know where video ends
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain')
+                self.send_header('Content-Length', len(send_data))
+                self.send_header('Access-Control-Allow-Origin', "*")
+                self.end_headers()
+                self.wfile.write(send_data)
+
+                # record [state, action, reward]
+                # put it here after training, notice there is a shift in reward storage
+                self.s_batch = [np.zeros((S_INFO, S_LEN))]
+
             else:
                 # option 1. reward for just quality
                 # reward = post_data['lastquality']
@@ -168,16 +188,6 @@ def make_request_handler(input_dict):
 
                 # send data to html side
                 send_data = str(bit_rate)
-
-                end_of_video = False
-                if ( post_data['lastRequest'] == TOTAL_VIDEO_CHUNKS ):
-                    send_data = "REFRESH"
-                    end_of_video = True
-                    self.input_dict['last_total_rebuf'] = 0
-                    self.input_dict['last_bit_rate'] = DEFAULT_QUALITY
-                    self.input_dict['video_chunk_coount'] = 0
-                    self.log_file.write('\n')  # so that in the log we know where video ends
-
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/plain')
                 self.send_header('Content-Length', len(send_data))
@@ -187,11 +197,7 @@ def make_request_handler(input_dict):
 
                 # record [state, action, reward]
                 # put it here after training, notice there is a shift in reward storage
-
-                if end_of_video:
-                    self.s_batch = [np.zeros((S_INFO, S_LEN))]
-                else:
-                    self.s_batch.append(state)
+                self.s_batch.append(state)
 
         def do_GET(self):
             print >> sys.stderr, 'GOT REQ'
@@ -200,7 +206,7 @@ def make_request_handler(input_dict):
             self.send_header('Cache-Control', 'max-age=3000')
             self.send_header('Content-Length', 20)
             self.end_headers()
-            self.wfile.write("console.log('here');")
+            self.wfile.write("console.log('here'); time: " + str(time.time()))
 
         def log_message(self, format, *args):
             return
@@ -262,7 +268,7 @@ def run(server_class=HTTPServer, port=8333, log_file_path=LOG_FILE):
         # interface to abr_rl server
         handler_class = make_request_handler(input_dict=input_dict)
 
-        server_address = ('localhost', port)
+        server_address = ('192.168.0.101', port)
         httpd = server_class(server_address, handler_class)
         print 'Listening on port ' + str(port)
         httpd.serve_forever()

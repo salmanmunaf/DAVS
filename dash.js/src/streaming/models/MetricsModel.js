@@ -270,6 +270,8 @@ function MetricsModel() {
 
         vo.time = quality.creationTime;
         vo.droppedFrames = quality.droppedVideoFrames;
+        vo.totalFrames = quality.totalVideoFrames;
+        vo.corruptedFrames = quality.corruptedVideoFrames;
 
         if (list.length > 0 && list[list.length - 1] == vo) {
             return list[list.length - 1];

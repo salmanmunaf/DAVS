@@ -11,6 +11,7 @@ import json
 from collections import deque
 import numpy as np
 import time
+import urlparse
 
 
 VIDEO_BIT_RATE = [300,750,1200,1850,2850,4300]  # Kbps
@@ -23,9 +24,11 @@ SMOOTH_PENALTY = 1
 TOTAL_VIDEO_CHUNKS = 48
 SUMMARY_DIR = './results'
 LOG_FILE = './results/log'
+MEM_STATE = None
+MEM_TS = None
 # in format of time_stamp bit_rate buffer_size rebuffer_time video_chunk_size download_time reward
 
-
+bitrate_data = "chunk_data.txt"
 def make_request_handler(input_dict):
 
     class Request_Handler(BaseHTTPRequestHandler):
@@ -35,43 +38,59 @@ def make_request_handler(input_dict):
             BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
 
         def do_POST(self):
-            content_length = int(self.headers['Content-Length'])
-            post_data = json.loads(self.rfile.read(content_length))
+
+            # prepare memory state
+            send_data = "None"
+            if MEM_STATE is not None:
+              send_data = MEM_STATE + " " + str(MEM_TS)
             
-            print post_data
-            send_data = ""
+            content_length = int(self.headers['Content-Length'])
+            rf_content = self.rfile.read(content_length)
+            post_data = json.loads(rf_content)
+            
 
             if ( 'lastquality' in post_data ):
-                rebuffer_time = float(post_data['RebufferTime'] -self.input_dict['last_total_rebuf'])
-                reward = \
-                   VIDEO_BIT_RATE[post_data['lastquality']] / M_IN_K \
-                   - REBUF_PENALTY * (post_data['RebufferTime'] - self.input_dict['last_total_rebuf']) / M_IN_K \
-                   - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[post_data['lastquality']] -
-                                                  self.input_dict['last_bit_rate']) / M_IN_K
-                # reward = BITRATE_REWARD[post_data['lastquality']] \
-                #         - 8 * rebuffer_time / M_IN_K - np.abs(BITRATE_REWARD[post_data['lastquality']] - BITRATE_REWARD_MAP[self.input_dict['last_bit_rate']])
+                print >> sys.stderr, post_data
+            	
+                # with open(bitrate_data, "a+") as f:
+            		  # f.write(str(post_data))
+              #   rebuffer_time = float(post_data['RebufferTime'] -self.input_dict['last_total_rebuf'])
+              #   reward = \
+              #      VIDEO_BIT_RATE[post_data['lastquality']] / M_IN_K \
+              #      - REBUF_PENALTY * (post_data['RebufferTime'] - self.input_dict['last_total_rebuf']) / M_IN_K \
+              #      - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[post_data['lastquality']] -
+              #                                     self.input_dict['last_bit_rate']) / M_IN_K
+              #   # reward = BITRATE_REWARD[post_data['lastquality']] \
+              #   #         - 8 * rebuffer_time / M_IN_K - np.abs(BITRATE_REWARD[post_data['lastquality']] - BITRATE_REWARD_MAP[self.input_dict['last_bit_rate']])
 
-                video_chunk_fetch_time = post_data['lastChunkFinishTime'] - post_data['lastChunkStartTime']
-                video_chunk_size = post_data['lastChunkSize']
+              #   video_chunk_fetch_time = post_data['lastChunkFinishTime'] - post_data['lastChunkStartTime']
+              #   video_chunk_size = post_data['lastChunkSize']
                 
-                # log wall_time, bit_rate, buffer_size, rebuffer_time, video_chunk_size, download_time, reward
-                self.log_file.write(str(time.time()) + '\t' +
-                                    str(VIDEO_BIT_RATE[post_data['lastquality']]) + '\t' +
-                                    str(post_data['buffer']) + '\t' +
-                                    str(float(post_data['RebufferTime'] - self.input_dict['last_total_rebuf']) / M_IN_K) + '\t' +
-                                    str(video_chunk_size) + '\t' +
-                                    str(video_chunk_fetch_time) + '\t' +
-                                    str(reward) + '\n')
-                self.log_file.flush()
+              #   # log wall_time, bit_rate, buffer_size, rebuffer_time, video_chunk_size, download_time, reward
+              #   self.log_file.write(str(time.time()) + '\t' +
+              #                       str(VIDEO_BIT_RATE[post_data['lastquality']]) + '\t' +
+              #                       str(post_data['buffer']) + '\t' +
+              #                       str(float(post_data['RebufferTime'] - self.input_dict['last_total_rebuf']) / M_IN_K) + '\t' +
+              #                       str(video_chunk_size) + '\t' +
+              #                       str(video_chunk_fetch_time) + '\t' +
+              #                       str(reward) + '\n')
+              #   self.log_file.flush()
 
-                self.input_dict['last_total_rebuf'] = post_data['RebufferTime']
-                self.input_dict['last_bit_rate'] = VIDEO_BIT_RATE[post_data['lastquality']]
+              #   self.input_dict['last_total_rebuf'] = post_data['RebufferTime']
+              #   self.input_dict['last_bit_rate'] = VIDEO_BIT_RATE[post_data['lastquality']]
 
-                if ( post_data['lastRequest'] == TOTAL_VIDEO_CHUNKS ):
-                    send_data = "REFRESH"
-                    self.input_dict['last_total_rebuf'] = 0
-                    self.input_dict['last_bit_rate'] = DEFAULT_QUALITY
-                    self.log_file.write('\n')  # so that in the log we know where video ends
+              # print post_data
+            if ( 'fpsSeries' in post_data ):
+              with open(bitrate_data, "a+") as f:
+                f.write(str(post_data))
+		f.write("\n")
+
+            if ( 'refresh' in post_data ):
+                send_data = "REFRESH"
+                self.input_dict['last_total_rebuf'] = 0
+                self.input_dict['last_bit_rate'] = DEFAULT_QUALITY
+                self.log_file.write('\n')  # so that in the log we know where video ends
+
 
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
@@ -81,13 +100,20 @@ def make_request_handler(input_dict):
             self.wfile.write(send_data)
 
         def do_GET(self):
-            print >> sys.stderr, 'GOT REQ'
+            global MEM_STATE
+            global MEM_TS
+            if "?" in self.path:
+                MEM_TS = time.time()
+                for key, value in dict(urlparse.parse_qsl(self.path.split("?")[1], True)).items():
+                    if value != "state":
+                        MEM_STATE = value
+                        print MEM_STATE
             self.send_response(200)
-            #self.send_header('Cache-Control', 'Cache-Control: no-cache, no-store, must-revalidate max-age=0')
+            # self.send_header('Cache-Control', 'Cache-Control: no-cache, no-store, must-revalidate max-age=0')
             self.send_header('Cache-Control', 'max-age=3000')
             self.send_header('Content-Length', 20)
             self.end_headers()
-            self.wfile.write("console.log('here');")
+            self.wfile.write("console.log('here'); time: " + str(time.time()))
 
         def log_message(self, format, *args):
             return
@@ -110,9 +136,9 @@ def run(server_class=HTTPServer, port=8333, log_file_path=LOG_FILE):
 
         handler_class = make_request_handler(input_dict=input_dict)
 
-        server_address = ('localhost', port)
+        server_address = ('192.168.0.101', port)
         httpd = server_class(server_address, handler_class)
-        print 'Listening on port ' + str(port)
+        #print 'Listening on port ' + str(port)
         httpd.serve_forever()
 
 

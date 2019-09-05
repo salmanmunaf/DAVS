@@ -304,6 +304,9 @@ function SourceBufferController() {
             waitForUpdateEnd(buffer, function () {
                 if ((start >= 0) && (end > start) && (mediaSource.readyState !== 'ended')) {
                     buffer.remove(start, end);
+                    // data_pruning_2.push(start);
+                    // data_pruning_3.push(end);
+                    console.log("Buffer removed! Start: " + str(start) + ", End: " + str(end));
                 }
                 // updating is in progress, we should wait for it to complete before signaling that this operation is done
                 waitForUpdateEnd(buffer, function () {

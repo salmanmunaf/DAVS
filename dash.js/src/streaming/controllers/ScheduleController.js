@@ -216,7 +216,7 @@ function ScheduleController(config) {
                 getNextFragment();
             } else {
                 console.log("CALLING ABR STUFF");
-                abrController.getPlaybackQuality(streamProcessor, getNextFragment, bufferController.getBufferLevel(), bufferController.getRebufferTime());
+                abrController.getPlaybackQuality(streamProcessor, getNextFragment, bufferController.getBufferLevel(), bufferController.getRebufferTime(), playbackController.getTime(), Date.now());
             }
 
         } else {

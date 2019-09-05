@@ -47,6 +47,13 @@ class DroppedFrames {
          * @public
          */
         this.droppedFrames = null;
+        /**
+         * Number of total and corrupted frames
+         * @public
+         */
+        this.totalFrames = null;
+        this.corruptedFrames = null;
+        // this.decodedFrames = null;
     }
 }
 

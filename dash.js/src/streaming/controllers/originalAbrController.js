@@ -43,7 +43,6 @@ import DashManifestModel from '../../dash/models/DashManifestModel';
 import VideoModel from '../models/VideoModel';
 import DashMetrics from '../../dash/DashMetrics';
 import MetricsModel from '../models/MetricsModel';
-const fs = require('fs') 
 
 const ABANDON_LOAD = 'abandonload';
 const ALLOW_LOAD = 'allowload';
@@ -52,22 +51,9 @@ const DEFAULT_AUDIO_BITRATE = 100;
 const QUALITY_DEFAULT = 4;
 const STATE_TO_BUFFER = { "FULL": 60, "HALF": 30, "EMPTY": 8 };
 const BUFFER_DOWNGRADE_THRESHOLD = 0.88;
-
-const CPU_THRESHOLD_INCREASE = 0.9;
-const CPU_FRACTION_INCREASE = 0.1;
-const WINDOW_SIZE_INCREASE = 10;
-const CPU_THRESHOLD_DECREASE = 0.8;
-const CPU_FRACTION_DECREASE = 0.1;
-const WINDOW_SIZE_DECREASE = 5;
-
-var BUFFER_SIZE = 60;
-var MEM_STATE = "";
-var MEM_TS = 0.0;
-var MEM_STATE_OLD = "";
-var MEM_TS_OLD = -1.0;
-var ABR_STATE = [];
+var BUFFER_STATE = "FULL";
+var ABR_STATE = 0;
 var fps_norm = [], fps_data = [], fps_time = [];
-
 // var cpuUsage;
 // var lInd = 0;
 //const dashMetrics = this.context.dashMetrics;
@@ -86,12 +72,12 @@ function AbrController() {
     let context = this.context;
     let eventBus = EventBus(context).getInstance();
     let abrAlgo = -1;
-    let bitrateArray = [200,300,480,750,1200,1850,2850,4300,5300];
-    // let bitrateArray = [300,750,1200,1850,2850,4300];
+    //let bitrateArray = [200,300,480,750,1200,1850,2850,4300,5300];
+    let bitrateArray = [300,750,1200,1850,2850,4300];
     let reservoir = 5;
     let startUpPhase = true;
     let oldBLevel = 0.0;
-    let maxBitrateAllowed = 4; // change according to the device
+    let maxBitrateAllowed = 5; // change according to the device
     let p_rb = 1;
     let pastThroughput = [];
     let pastDownloadTime = [];
@@ -404,179 +390,8 @@ function AbrController() {
     }
 
     function getBitrateBB(bLevel) {
+        
         var self = this;
-        // tmpBitrate = 0,
-        // tmpQuality = 0;
-        // if (bLevel <= reservoir) 
-        //     tmpBitrate = bitrateArray[0];
-        // // } else if (bLevel > reservoir + cushion) {
-        // //     tmpBitrate = bitrateArray[8];
-        // // } else {
-        // //     tmpBitrate = bitrateArray[0] + (bitrateArray[8] - bitrateArray[0])*(bLevel - reservoir)/cushion;
-        // // }
-        
-        // // findout matching quality level
-        // for (var i = 9; i>=0; i--) {
-        //     if (tmpBitrate >= bitrateArray[i]) {
-        //         tmpQuality = i;
-        //         break;
-        //     }
-        //     tmpQuality = i;
-        // }
-        //return 9;
-        
-        // return tmpQuality;
-
-        // return 0;
-/////////////mem constraint///////////////////
-        // var self = this;
-
-        // ABR_STATE.push(MEM_STATE);
-        let data = {
-            'Mem State' : MEM_STATE,
-            'LastQuality' : lastQuality,
-            'Buffer Size' : BUFFER_SIZE
-        }
-
-        // state unchanged
-        if ( MEM_TS === MEM_TS_OLD ) {
-            return lastQuality;
-        }
-
-        // no memory info
-        // if ( MEM_STATE === "" ) {
-        //     return 2;
-        // }
-
-        MEM_TS_OLD = MEM_TS;
-        MEM_STATE_OLD = MEM_STATE;
-
-        // state changed to moderate
-        if ( MEM_STATE === "Moderate" ) {
-            return Math.max(lastQuality - 1, 0);
-        }
-
-        // state changed to low
-        if ( MEM_STATE === "Low" ) {
-            
-            if (lastQuality < 3) {
-                
-                if ( lastQuality === 2 ) {
-                BUFFER_SIZE = Math.max(BUFFER_SIZE - 10, 8);
-                }
-
-                if ( lastQuality === 1 ) {
-                    BUFFER_SIZE = Math.max(BUFFER_SIZE - 30, 8);
-                }
-
-                if ( lastQuality === 0 ) {
-                    BUFFER_SIZE = 8;
-                }
-
-                mediaPlayerModel.setBufferTimeAtTopQuality(BUFFER_SIZE);
-                mediaPlayerModel.setStableBufferTime(BUFFER_SIZE);
-                mediaPlayerModel.setBufferToKeep(BUFFER_SIZE);
-            }
-
-            return Math.max(lastQuality - 1, 0);
-        }
-
-        // state changed to critical
-        if ( MEM_STATE === "Critical" ) {
-            mediaPlayerModel.setBufferTimeAtTopQuality(8);
-            mediaPlayerModel.setStableBufferTime(8);
-            mediaPlayerModel.setBufferToKeep(8);
-            return 0;
-        }
-
-        // ABR_STATE.push(-1);
-        // return 2;
-/////////////////CPU constraint///////////////////////
-        // if ( lastRequested < 15 ) {
-        //     return 2;
-        // }
-    
-        // if ( lastRequested === 15 ) {
-        //     mediaPlayerModel.setBufferTimeAtTopQuality(8);
-        //     mediaPlayerModel.setStableBufferTime(8);
-        //     mediaPlayerModel.setBufferToKeep(8);
-        // }
-        
-        // return 0;
-
-
-        // ABR_STATE.push(-1);
-        // // fetch fps data
-        if ( sessionStorage.fps && sessionStorage.time ) {
-            fps_data = sessionStorage.getItem("fps").split(',').map(Number);
-            fps_time = sessionStorage.getItem("time").split(',').map(Number);
-        }
-        // } else {
-        //     return lastQuality;
-        // }
-        // let data = {
-        //     'Mem State' : MEM_STATE,
-        //     'LastQuality' : lastQuality,
-        //     'Buffer Size' : BUFFER_SIZE,
-        //     'fps data' : fps_data,
-        //     'fps time' : fps_time
-        // }
-        // console.log('******DATA***********');
-        // console.log(data);
-        data['fps data'] = fps_data;
-        data['fps time'] = fps_time;
-
-
-        // // CPU Bottleneck Condition
-        // ABR_STATE.push(0);
-        if ( fps_data.length > WINDOW_SIZE_DECREASE ) {
-
-            var fps_normal = normalizeFps(fps_data,fps_time).slice(0,-1);
-            ABR_STATE.push(1);
-            // threshold was reached
-            if ( (fps_ndataormal.slice(-1*WINDOW_SIZE_DECREASE).filter(function(n) { return n < CPU_THRESHOLD_DECREASE; }).length)/WINDOW_SIZE_DECREASE > CPU_FRACTION_DECREASE ) {
-                return Math.max(lastQuality - 1, 0);
-            }
-        }
-
-
-        // //CPU good
-        // ABR_STATE.push(2);
-        if ( fps_data.length > WINDOW_SIZE_INCREASE ) {
-
-            var fps_normal = normalizeFps(fps_data,fps_time).slice(0,-1);
-            ABR_STATE.push(3);;
-            // threshold was reached
-            if ( (fps_normal
-                .slice(-1*WINDOW_SIZE_INCREASE)
-                .filter(function(n) { return n < CPU_THRESHOLD_INCREASE; }).length)/WINDOW_SIZE_INCREASE <= CPU_FRACTION_INCREASE ) {
-
-                return Math.max(lastQuality + 1, 5);
-            }
-        }
-        // ABR_STATE.push(4);
-        // return lastQuality;e
-        let tmpBitrate = 0;
-        let tmpQuality = 0;
-        if (bLevel <= reservoir) {
-            tmpBitrate = bitrateArray[0];
-        } else if (bLevel > reservoir + cushion) {
-            tmpBitrate = bitrateArray[8];
-        } else {
-            tmpBitrate = bitrateArray[0] + (bitrateArray[8] - bitrateArray[0])*(bLevel - reservoir)/cushion;
-        }
-        
-        // findout matching quality level
-        for (var i = 9; i>=0; i--) {
-            if (tmpBitrate >= bitrateArray[i]) {
-                tmpQuality = i;
-                break;
-            }
-            tmpQuality = i;
-        }
-        return tmpQuality;
-
-
 
         // // give time for system to stabilize
         // if ( BUFFER_STATE == "HALF" && bLevel > STATE_TO_BUFFER[BUFFER_STATE] ) {
@@ -621,46 +436,47 @@ function AbrController() {
 
         // return 5;
 
-        // let bitrates = [0, 1, 2];
-        // let counter = lastRequested;
-        // counter = (counter + 1) % bitrates.length;
+        // var bitrates = [0, 1, 2];
+        // var counter = 0;
+        // if ( lastRequested % 4 == 0 )
+        //     counter = (counter + 1) % bitrates.length;
         // return bitrates[counter];
 
-        // var swing_bitrate = 0;
-        // var floor_bitrate = 1;
+        var swing_bitrate = 0;
+        var floor_bitrate = 1;
 
-        // if (lastRequested <= 2)
-        //     return swing_bitrate;
-        // else if (lastRequested <= 6)
-        //     return floor_bitrate;
+        if (lastRequested <= 2)
+            return swing_bitrate;
+        else if (lastRequested <= 6)
+            return floor_bitrate;
         
-        // else if (lastRequested <= 10)
-        //     return swing_bitrate;
-        // else if (lastRequested <= 14)
-        //     return floor_bitrate;
+        else if (lastRequested <= 10)
+            return swing_bitrate;
+        else if (lastRequested <= 14)
+            return floor_bitrate;
         
-        // else if (lastRequested <= 18)
-        //     return swing_bitrate;
-        // else if (lastRequested <= 22)
-        //     return floor_bitrate;
+        else if (lastRequested <= 18)
+            return swing_bitrate;
+        else if (lastRequested <= 22)
+            return floor_bitrate;
         
-        // else if (lastRequested <= 26)
-        //     return swing_bitrate;
-        // else if (lastRequested <= 30)
-        //     return floor_bitrate;
+        else if (lastRequested <= 26)
+            return swing_bitrate;
+        else if (lastRequested <= 30)
+            return floor_bitrate;
         
-        // else if (lastRequested <= 34)
-        //     return swing_bitrate;
-        // else if (lastRequested <= 38)
-        //     return floor_bitrate;
+        else if (lastRequested <= 34)
+            return swing_bitrate;
+        else if (lastRequested <= 38)
+            return floor_bitrate;
         
-        // else if (lastRequested <= 42)
-        //     return swing_bitrate;
-        // else if (lastRequested <= 46)
-        //     return floor_bitrate;
+        else if (lastRequested <= 42)
+            return swing_bitrate;
+        else if (lastRequested <= 46)
+            return floor_bitrate;
         
-        // else
-        //     return swing_bitrate;
+        else
+            return swing_bitrate;
         // if ( 10 <= lastRequested && lastRequested <= 25 ) {
         //     mediaPlayerModel.setBufferTimeAtTopQuality(60);
         //     mediaPlayerModel.setStableBufferTime(60);
@@ -1017,14 +833,9 @@ function AbrController() {
                 xhr.onreadystatechange = function() {
                     if ( xhr.readyState == 4 && xhr.status == 200 ) {
                         console.log("GOT RESPONSE:" + xhr.responseText + "---");
-                        var resp = xhr.responseText.split(" ");
-                        if ( resp[0] != "None" ) {
-                            MEM_STATE = resp[0];
-                            MEM_TS = parseFloat(resp[1]);
-                        }
                     }
                 }
-                var data = {'deviceTime': curr_time, 'videoPlayed': video_time, 'nextChunkSize': next_chunk_size(lastRequested+1), 'Type': 'BB', 'lastquality': lastQuality, 'buffer': buffer, 'bufferAdjusted': bufferLevelAdjusted, 'bandwidthEst': bandwidthEst, 'lastRequest': lastRequested, 'RebufferTime': rebuffer, 'lastChunkFinishTime': lastHTTPRequest._tfinish.getTime(), 'lastChunkStartTime': lastHTTPRequest.tresponse.getTime(), 'lastChunkSize': last_chunk_size(lastHTTPRequest), 'droppedFrames': droppedFramesNow, 'ABR_STATE': ABR_STATE, 'fpsNorm': fps_norm};
+                var data = {'deviceTime': curr_time, 'videoPlayed': video_time, 'nextChunkSize': next_chunk_size(lastRequested+1), 'Type': 'BB', 'lastquality': lastQuality, 'buffer': buffer, 'bufferAdjusted': bufferLevelAdjusted, 'bandwidthEst': bandwidthEst, 'lastRequest': lastRequested, 'RebufferTime': rebuffer, 'lastChunkFinishTime': lastHTTPRequest._tfinish.getTime(), 'lastChunkStartTime': lastHTTPRequest.tresponse.getTime(), 'lastChunkSize': last_chunk_size(lastHTTPRequest), 'droppedFrames': droppedFramesNow, 'bufferState': BUFFER_STATE, 'abrState': ABR_STATE, 'fpsNorm': fps_norm};
                 xhr.open("POST", "http://192.168.0.101:8333", true);
                 xhr.send(JSON.stringify(data));
                 return Math.min(getBitrateBB(buffer), maxBitrateAllowed);
