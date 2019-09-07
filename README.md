@@ -1,6 +1,6 @@
-# Pensieve
-Pensieve is a system that generates adaptive bitrate algorithms using reinforcement learning.
-http://web.mit.edu/pensieve/
+# DAVS
+DAVS is a video client module that adapts the play-back buffer size and the video bitrate in response to device
+bottlenecks.
 
 ### Prerequisites
 - Install prerequisites (tested with Ubuntu 16.04, Tensorflow v1.1.0, TFLearn v0.3.1 and Selenium v2.39.0)
